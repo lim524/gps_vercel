@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>GPS 위치 추적</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet/dist/leaflet.css"
+  />
+  <style>
+    body { margin: 0; padding: 0; font-family: sans-serif; }
+    #map { width: 100vw; height: 100vh; }
+    #info {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 1000;
+      background: rgba(255,255,255,0.9);
+      padding: 8px 12px;
+      border-radius: 6px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      font-size: 14px;
+      white-space: pre-line;
+    }
+  </style>
+</head>
+<body>
+  <div id="info">ESP에서 위치 데이터를 기다리는 중...</div>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    let map = L.map('map').setView([37.5665, 126.9780], 13); // 서울
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    let marker = null;
+
+    async function fetchLocation() {
+      try {
+        const res = await fetch('/api/location');
+        const data = await res.json();
+
+        const info = document.getElementById('info');
+
+        if (!data.lat || !data.lng) {
+          info.textContent = "아직 ESP에서 위치가 전송되지 않았습니다.";
+          return;
+        }
+
+        const lat = data.lat;
+        const lng = data.lng;
+
+        info.textContent =
+          `기기: ${data.device_id}\n위도: ${lat}\n경도: ${lng}\n시간: ${data.time}`;
+
+        if (!marker) {
+          marker = L.marker([lat, lng]).addTo(map);
+          map.setView([lat, lng], 17);
+        } else {
+          marker.setLatLng([lat, lng]);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    fetchLocation();
+    setInterval(fetchLocation, 5000); // 5초마다 갱신
+  </script>
+</body>
+</html>

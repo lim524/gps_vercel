@@ -13,7 +13,7 @@ export default function handler(req, res) {
       device_id,
       lat,
       lng,
-      time: new Date().toISOString()
+      time: new Date().toISOString(),
     };
 
     return res.status(200).json({ status: "ok" });
