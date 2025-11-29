@@ -30,47 +30,85 @@
   <div id="map"></div>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <script>
-    let map = L.map('map').setView([37.5665, 126.9780], 13); // 서울
+<script>
+  let map = L.map('map').setView([37.5665, 126.9780], 13); // 서울
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
 
-    let marker = null;
+  let marker = null;
 
-    async function fetchLocation() {
-      try {
-        const res = await fetch('/api/location');
-        const data = await res.json();
+  async function fetchLocation() {
+    try {
+      const res = await fetch('/api/location');
+      const data = await res.json();
 
-        const info = document.getElementById('info');
+      const info = document.getElementById('info');
 
-        if (!data.lat || !data.lng) {
-          info.textContent = "아직 ESP에서 위치가 전송되지 않았습니다.";
-          return;
-        }
-
-        const lat = data.lat;
-        const lng = data.lng;
-
-        info.textContent =
-          `기기: ${data.device_id}\n위도: ${lat}\n경도: ${lng}\n시간: ${data.time}`;
-
-        if (!marker) {
-          marker = L.marker([lat, lng]).addTo(map);
-          map.setView([lat, lng], 17);
-        } else {
-          marker.setLatLng([lat, lng]);
-        }
-      } catch (e) {
-        console.error(e);
+      // time이 없으면 아직 아무 것도 안 온 상태라고 가정
+      if (!data.time) {
+        info.textContent = "아직 ESP에서 위치가 전송되지 않았습니다.";
+        return;
       }
-    }
 
-    fetchLocation();
-    setInterval(fetchLocation, 5000); // 5초마다 갱신
-  </script>
+      // 서버에 기록된 마지막 업데이트 시간
+      const serverTime = new Date(data.time).getTime();
+      const now = Date.now();
+      const diffSec = (now - serverTime) / 1000; // 초 단위
+
+      // 30초 이상 새 데이터가 안 들어온 경우
+      const isStale = diffSec > 30;
+
+      // lat/lng가 null 이거나, 데이터가 30초 이상 오래된 경우
+      if (data.lat == null || data.lng == null || isStale) {
+        let msg = "";
+
+        if (isStale) {
+          msg =
+            `⚠ 30초 이상 새 위치 데이터가 없습니다.\n` +
+            `마지막 위치 수신 시각: ${data.time}\n` +
+            `현재 위치 정보 없음으로 표시합니다.`;
+        } else {
+          msg = "아직 ESP에서 유효한 위치 정보가 전송되지 않았습니다.";
+        }
+
+        info.textContent = msg;
+        // 원하면 여기서 marker를 숨기고 싶으면 아래 주석 해제
+        // if (marker) {
+        //   map.removeLayer(marker);
+        //   marker = null;
+        // }
+        return;
+      }
+
+      // 여기부터는 "정상 / 최신" 데이터일 때만
+      const lat = Number(data.lat);
+      const lng = Number(data.lng);
+
+      info.textContent =
+        `기기: ${data.device_id}\n` +
+        `위도: ${lat}\n` +
+        `경도: ${lng}\n` +
+        `마지막 업데이트: ${data.time}\n` +
+        `(지연: 약 ${diffSec.toFixed(1)}초)`;
+
+      if (!marker) {
+        marker = L.marker([lat, lng]).addTo(map);
+        map.setView([lat, lng], 17);
+      } else {
+        marker.setLatLng([lat, lng]);
+      }
+    } catch (e) {
+      console.error(e);
+      document.getElementById('info').textContent =
+        "위치 정보를 불러오는 중 오류가 발생했습니다.";
+    }
+  }
+
+  fetchLocation();
+  setInterval(fetchLocation, 5000); // 5초마다 갱신
+</script>
 </body>
 </html>
