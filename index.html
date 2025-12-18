@@ -32,15 +32,16 @@
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script>
   let map = L.map('map', { zoomControl: false }).setView([37.5665, 126.9780], 13); // 서울
+
   L.control.zoom({
-  position: 'topright'
-}).addTo(map);
+    position: 'topright'
+  }).addTo(map);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
-
+  
   let marker = null;
 
   async function fetchLocation() {
